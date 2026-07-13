@@ -71,6 +71,12 @@
         if (index === 2) initPhotoGuess();
         if (index === 3) initRiddle();
         if (index === 4) initHeartsGame();
+        if (currentStep === 4 && index !== 4) {
+            gameActive = false;
+            clearInterval(heartsGameInterval);
+            canvas.onclick = null;
+            canvas.ontouchstart = null;
+        }
         if (index === 5) initDecoder();
         if (index === 6) initShop();
     }
@@ -182,6 +188,15 @@
         const gridEl = document.getElementById('wordGrid');
         gridEl.innerHTML = '';
         gridEl.style.gridTemplateColumns = `repeat(${gridSize}, 1fr)`;
+
+        gridEl.addEventListener('touchstart', (e) => {
+            // Only intercept touches that hit a .cell
+            const target = e.target;
+            if (!target.classList.contains('cell')) return;  // let buttons, etc. work
+            e.preventDefault();
+            startSelection(e.touches[0]);
+        }, {passive: false});
+
         for (let r=0; r<gridSize; r++) {
             for (let c=0; c<gridSize; c++) {
                 const cell = document.createElement('div');
@@ -500,6 +515,8 @@
             btnNo.onclick = triggerCelebration;
         } else {
             btnYes.style.transform = `scale(${1+noCount*0.1})`;
+            const moveX = (Math.random() - 0.5) * 40;  // px
+            const moveY = (Math.random() - 0.5) * 30;
             btnNo.style.transform = `translate(${(Math.random()-0.5)*18}px, ${(Math.random()-0.5)*18}px) scale(0.9)`;
         }
     }
