@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>The Quest for Us</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="bg-layer">
+        <div class="bg-orb orb-1"></div>
+        <div class="bg-orb orb-2"></div>
+        <div class="bg-orb orb-3"></div>
+    </div>
+    <div class="grain-overlay"></div>
+    <canvas id="confetti-canvas"></canvas>
+
+    <div class="main-container">
+        <!-- Heart progress & score -->
+        <div class="quest-progress" id="questProgress">
+            <span class="heart-shard" data-quest="1">🤍</span>
+            <span class="heart-shard" data-quest="2">🤍</span>
+            <span class="heart-shard" data-quest="3">🤍</span>
+            <span class="heart-shard" data-quest="4">🤍</span>
+            <span class="heart-shard" data-quest="5">🤍</span>
+            <div class="affection-score" id="affectionScore">0</div>
+        </div>
+
+        <!-- STEP 0: Intro -->
+        <div class="step active" data-step="0">
+            <p class="step-subtitle">A little side quest...</p>
+            <h2 class="step-title">A Quest<br>for the hidden gem</h2>
+            <button class="btn btn-primary" id="startBtn">Begin Adventure 💎</button>
+        </div>
+
+        <!-- STEP 1: Word Search -->
+        <div class="step" data-step="1" data-quest="1">
+            <h3 class="quest-title">Quest 1/5 : Word Search</h3>
+            <p class="step-subtitle">Find all 7 words (drag across letters)</p>
+            <div class="word-list" id="wordListContainer"></div>
+            <div class="word-grid" id="wordGrid"></div>
+            <button class="btn btn-secondary complete-quest-btn" id="finishWordSearch" disabled>Complete Quest</button>
+        </div>
+
+        <!-- STEP 2: Photo Guess -->
+        <div class="step" data-step="2" data-quest="2">
+            <h3 class="quest-title">Quest 2/5 : My Favorite Photo</h3>
+            <p class="step-subtitle">Which one is my favorite picture of you?</p>
+            <div class="photo-options" id="photoOptions">
+                <!-- Images will be inserted by JS from the placeholder list -->
+                <div class="photo-card" data-index="0">
+                    <img src="images/cowgirl_jade.jpeg" alt="Photo 1">
+                </div>
+                <div class="photo-card" data-index="1" data-favorite="true">
+                    <img src="images/sunset_jade.jpeg" alt="Photo 2">
+                </div>
+                <div class="photo-card" data-index="2">
+                    <img src="images/valentines_jade.jpeg" alt="Photo 3">
+                </div>
+                <div class="photo-card" data-index="3">
+                    <img src="images/nyc_jade.jpeg" alt="Photo 4">
+                </div>
+            </div>
+            <p class="quiz-feedback" id="photoFeedback"></p>
+            <button class="btn btn-secondary complete-quest-btn" id="finishPhotoGuess" disabled>Complete Quest</button>
+        </div>
+
+        <!-- STEP 3: Riddle -->
+        <div class="step" data-step="3" data-quest="3">
+            <h3 class="quest-title">Quest 3/5 : The Riddle</h3>
+            <p class="step-subtitle">Answer wisely...</p>
+            <p class="riddle-question" id="riddleQuestion"></p>
+            <div class="quiz-options" id="riddleOptions"></div>
+            <p class="quiz-feedback" id="riddleFeedback"></p>
+            <button class="btn btn-secondary complete-quest-btn" id="finishRiddle" disabled>Complete Quest</button>
+        </div>
+
+        <!-- STEP 4: Catch the Hearts -->
+        <div class="step" data-step="4" data-quest="4">
+            <h3 class="quest-title">Quest 4/5 : Catch the Hearts</h3>
+            <p class="step-subtitle">Tap falling hearts before time runs out!</p>
+            <div class="catch-game-container">
+                <canvas id="heartsCanvas" width="300" height="400"></canvas>
+                <div class="catch-info">
+                    <span id="catchTimer">30</span>s | <span id="catchScore">0</span> hearts
+                </div>
+            </div>
+            <button class="btn btn-secondary complete-quest-btn" id="finishHearts" disabled>Complete Quest</button>
+        </div>
+
+        <!-- STEP 5: Love Decoder -->
+        <div class="step" data-step="5" data-quest="5">
+            <h3 class="quest-title">Quest 5/5 : Secret Message</h3>
+            <p class="step-subtitle">Decode the message (Caesar cipher, shift 3 back)</p>
+            <div class="decoder-box">
+                <p class="encoded-msg" id="encodedMsg">L oryh brx</p>
+                <input type="text" id="decoderInput" placeholder="Type the decoded message" autocomplete="off">
+                <button class="btn btn-small" id="submitDecoder">Submit</button>
+            </div>
+            <p class="quiz-feedback" id="decoderFeedback"></p>
+            <button class="btn btn-secondary complete-quest-btn" id="finishDecoder" disabled>Complete Quest</button>
+        </div>
+
+        <!-- STEP 6: Rewards Shop -->
+        <div class="step" data-step="6">
+            <h3 class="quest-title">💝 Rewards Shop</h3>
+            <p class="step-subtitle">Spend your heart points on relationship IOUs</p>
+            <div class="shop-container" id="shopContainer"></div>
+            <p class="step-subtitle">Your points: <span id="shopPoints">0</span></p>
+            <button class="btn btn-primary" id="proceedToFinal">Proceed to Final Question</button>
+        </div>
+
+        <!-- STEP 7: Final Proposal -->
+        <div class="step" data-step="7">
+            <h3 class="quest-title boss-title">⚔️ The Final Question ⚔️</h3>
+            <div id="initialContent">
+                <p class="step-subtitle" id="greetingText">Hey you...</p>
+                <h1 class="step-title">Will you officially<br>be mine?</h1>
+                <div class="button-row" id="buttonRow">
+                    <button class="btn btn-yes" id="btnYes">YESSS! 💫</button>
+                    <button class="btn btn-no" id="btnNo">Not yet...</button>
+                </div>
+            </div>
+            <div class="celebration-content hidden" id="celebrationContent">
+                <span class="celebration-emoji">💖</span>
+                <h1 class="step-title">It's Official!</h1>
+                <p class="step-subtitle" id="celebrationMessage">Here's to many more side-quests with you, Jade!</p>
+                <p class="celebration-date" id="celebrationDate"></p>
+            </div>
+        </div>
+
+        <div class="star-burst" id="starBurst"></div>
+        <div class="toast" id="toast"></div>
+    </div>
+
+    <script src="script.js"></script>
+    <!-- Reset button (invisible, click bottom-right corner 5 times quickly) -->
+<div id="resetTrigger" style="position:fixed; bottom:10px; right:10px; width:30px; height:30px; opacity:0; z-index:999; cursor:pointer;"></div>
+</body>
+</html>
