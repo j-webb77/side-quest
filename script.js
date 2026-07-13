@@ -1,45 +1,24 @@
 (function() {
-    // ── Persistence: remember celebration state ──
+    // ── Persistence ──
     const STORAGE_KEY = 'proposalGameCelebrated';
-    const urlParams = new URLSearchParams(window.location.search);
+    const urlParams = new URLSearchParams(window.location.search);   // ← only once
     const shouldReset = urlParams.get('reset') === 'true';
 
     if (shouldReset) {
         localStorage.removeItem(STORAGE_KEY);
-        // Optional: remove the reset param so the URL looks clean
         window.history.replaceState({}, document.title, window.location.pathname);
     }
 
-    let celebrationActive = localStorage.getItem(STORAGE_KEY) === 'true';
-
-    // If the celebration was already active, jump straight to the final screen
-    if (celebrationActive) {
-        // Wait for DOM, then show celebration immediately
-        document.addEventListener('DOMContentLoaded', () => {
-            showStep(7); // step 7 is the final proposal step
-            // Immediately display the celebration content, hide the question
-            document.getElementById('initialContent').style.display = 'none';
-            document.getElementById('celebrationContent').classList.remove('hidden');
-            const now = new Date();
-            document.getElementById('celebrationDate').textContent = now.toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'}) + ' 💫';
-            if (displayName) document.getElementById('celebrationMessage').textContent = `I found my hidden gem 💎 ${displayName}.`;
-            else document.getElementById('celebrationMessage').textContent = 'I found my hidden gem 💎';
-            // Fire confetti again for the re‑show
-            launchConfetti();
-            spawnHearts();
-        });
-    }
-    // ─── CONFIGURATION (edit these!) ──────────────────
-    const RECIPIENT_NAME = '';   // or use ?name=HerName in URL
+    // ─── CONFIGURATION ──────────────────
+    const RECIPIENT_NAME = 'Jade';
     const wordList = ['JADE', 'JEREMIAH', 'NIKE', 'COOPER', 'LOVE', 'FOREVER', 'ALWAYS'];
     const riddleData = {
         question: "I speak without a mouth and hear without ears. I have no body, but I come alive with wind. What am I?",
         options: ["Echo", "Shadow", "Dream", "Song"],
-        correct: 0  // index of correct answer
+        correct: 0
     };
-    const cipherShift = 3;  // Caesar shift
-    const cipherMessage = "L ORYH BRX";  // "I LOVE YOU" shifted by 3
-    // Coupons for the shop
+    const cipherShift = 3;
+    const cipherMessage = "L ORYH BRX";   // "I LOVE YOU"
     const coupons = [
         { name: "Dinner at Home", desc: "I'll cook your favorite meal.", cost: 25 },
         { name: "Movie Night", desc: "Complimentary movie + concessions at the Regal theater", cost: 50 },
@@ -47,14 +26,15 @@
         { name: "Breakfast in Bed", desc: "Pancakes, coffee, and covers.", cost: 25 },
         { name: "Waterway Dinner", desc: "Dinner on The Woodlands' Waterway.", cost: 100 }
     ];
-    // ──────────────────────────────────────────────────
-    const displayName = urlParams.get('name') || urlParams.get('n') || RECIPIENT_NAME;
 
+    const displayName = urlParams.get('name') || urlParams.get('n') || RECIPIENT_NAME;
+    let celebrationActive = localStorage.getItem(STORAGE_KEY) === 'true';
+
+    // ── Global state ──
     let currentStep = 0;
     let affectionScore = 0;
     const completedQuests = new Set();
-    const totalQuests = 5;  // games 1-5
-
+    const totalQuests = 5;
     const steps = document.querySelectorAll('.step');
     const heartShards = document.querySelectorAll('.heart-shard');
     const affectionDisplay = document.getElementById('affectionScore');
@@ -62,6 +42,12 @@
     const toast = document.getElementById('toast');
 
     function showStep(index) {
+        if (currentStep === 4 && index !== 4) {
+            gameActive = false;
+            clearInterval(heartsGameInterval);
+            canvas.onclick = null;
+            canvas.ontouchstart = null;
+        }
         steps.forEach(s => s.classList.remove('active'));
         steps[index].classList.add('active');
         currentStep = index;
@@ -69,12 +55,6 @@
         if (index === 2) initPhotoGuess();
         if (index === 3) initRiddle();
         if (index === 4) initHeartsGame();
-        if (currentStep === 4 && index !== 4) {
-            gameActive = false;
-            clearInterval(heartsGameInterval);
-            canvas.onclick = null;
-            canvas.ontouchstart = null;
-        }
         if (index === 5) initDecoder();
         if (index === 6) initShop();
     }
@@ -108,19 +88,35 @@
         }
     }
 
-    // ── Quest completion buttons ──
+    // ── Quest buttons ──
     document.getElementById('finishWordSearch').addEventListener('click', () => completeQuest(1));
     document.getElementById('finishPhotoGuess').addEventListener('click', () => completeQuest(2));
     document.getElementById('finishRiddle').addEventListener('click', () => completeQuest(3));
     document.getElementById('finishHearts').addEventListener('click', () => completeQuest(4));
     document.getElementById('finishDecoder').addEventListener('click', () => completeQuest(5));
 
-    // ── STEP 1: Word Search (with permanent highlighting) ──
+    // ── STEP 1: Word Search ──
+    const gridEl = document.getElementById('wordGrid');
     let selectedCells = [];
     let foundWords = new Set();
-    let foundCellsSet = new Set(); // stores "row,col" of found cells
+    let foundCellsSet = new Set();
     const gridSize = 8;
     let gridLetters = [];
+
+    gridEl.addEventListener('mousedown', (e) => {
+        if (!e.target.classList.contains('cell')) return;
+        e.preventDefault();
+        startSelection(e);
+    });
+    gridEl.addEventListener('touchstart', (e) => {
+        if (!e.target.classList.contains('cell')) return;
+        e.preventDefault();
+        startSelection(e.touches[0]);
+    }, { passive: false });
+    window.addEventListener('mousemove', (e) => { if (isSelecting) updateSelection(e); });
+    window.addEventListener('touchmove', (e) => { if (isSelecting) { e.preventDefault(); updateSelection(e.touches[0]); } }, { passive: false });
+    window.addEventListener('mouseup', endSelection);
+    window.addEventListener('touchend', endSelection);
 
     function initWordSearch() {
         foundWords.clear();
@@ -183,18 +179,8 @@
     }
 
     function renderGrid() {
-        const gridEl = document.getElementById('wordGrid');
         gridEl.innerHTML = '';
         gridEl.style.gridTemplateColumns = `repeat(${gridSize}, 1fr)`;
-
-        gridEl.addEventListener('touchstart', (e) => {
-            // Only intercept touches that hit a .cell
-            const target = e.target;
-            if (!target.classList.contains('cell')) return;  // let buttons, etc. work
-            e.preventDefault();
-            startSelection(e.touches[0]);
-        }, {passive: false});
-
         for (let r=0; r<gridSize; r++) {
             for (let c=0; c<gridSize; c++) {
                 const cell = document.createElement('div');
@@ -202,7 +188,6 @@
                 cell.textContent = gridLetters[r][c];
                 cell.dataset.row = r;
                 cell.dataset.col = c;
-                // Re-apply found-cell class if this cell is already found
                 if (foundCellsSet.has(`${r},${c}`)) {
                     cell.classList.add('found-cell');
                 }
@@ -220,22 +205,9 @@
         document.getElementById('finishWordSearch').disabled = foundWords.size === 0;
     }
 
-    const gridEl = document.getElementById('wordGrid');
     let isSelecting = false;
-    gridEl.addEventListener('mousedown', (e) => { e.preventDefault(); startSelection(e); });
-    gridEl.addEventListener('touchstart', (e) => {     
-        if (!e.target.classList.contains('cell')) return;  // let buttons work!
-            e.preventDefault();
-            startSelection(e.touches[0]);
-        }, { passive: false });
-    window.addEventListener('mousemove', (e) => { if (isSelecting) updateSelection(e); });
-    window.addEventListener('touchmove', (e) => { if (isSelecting) { e.preventDefault(); updateSelection(e.touches[0]); } }, {passive: false});
-    window.addEventListener('mouseup', endSelection);
-    window.addEventListener('touchend', endSelection);
-
     function startSelection(e) {
         isSelecting = true;
-        // Remove temporary selection highlight from previous drag, but keep found cells highlighted
         document.querySelectorAll('.cell.selected').forEach(c => c.classList.remove('selected'));
         selectedCells = [];
         const cell = getCellFromPoint(e.clientX, e.clientY);
@@ -260,7 +232,6 @@
             document.querySelector(`.word-item[data-word="${word}"]`)?.classList.add('found');
             showToast(`Found ${word}! +10`);
             updateWordSearchCompletion();
-            // Permanently mark these cells as found
             selectedCells.forEach(cell => {
                 const row = cell.dataset.row;
                 const col = cell.dataset.col;
@@ -268,7 +239,6 @@
                 cell.classList.add('found-cell');
             });
         }
-        // Clear temporary selection
         document.querySelectorAll('.cell.selected').forEach(c => c.classList.remove('selected'));
         selectedCells = [];
     }
@@ -460,8 +430,7 @@
         }
     });
 
-
-    // ── STEP 6: Rewards Shop (improved layout) ──
+    // ── STEP 6: Rewards Shop ──
     let purchasedCoupons = [];
     function initShop() {
         document.getElementById('shopPoints').textContent = affectionScore;
@@ -482,7 +451,6 @@
             `;
             container.appendChild(card);
         });
-        // click handler remains the same, attached to the container
         container.addEventListener('click', (e) => {
             if (e.target.tagName === 'BUTTON') {
                 const idx = e.target.dataset.index;
@@ -517,9 +485,9 @@
             btnNo.onclick = triggerCelebration;
         } else {
             btnYes.style.transform = `scale(${1+noCount*0.1})`;
-            const moveX = (Math.random() - 0.5) * 40;  // px
+            const moveX = (Math.random() - 0.5) * 40;
             const moveY = (Math.random() - 0.5) * 30;
-            btnNo.style.transform = `translate(${(Math.random()-0.5)*18}px, ${(Math.random()-0.5)*18}px) scale(0.9)`;
+            btnNo.style.transform = `translate(${moveX}px, ${moveY}px) scale(0.9)`;
         }
     }
     btnNo.addEventListener('mouseenter', () => {
@@ -537,21 +505,20 @@
     btnYes.addEventListener('click', triggerCelebration);
 
     function triggerCelebration() {
-        // Save celebration state to localStorage
         localStorage.setItem(STORAGE_KEY, 'true');
-
         document.getElementById('initialContent').style.display = 'none';
         document.getElementById('celebrationContent').classList.remove('hidden');
         const now = new Date();
         document.getElementById('celebrationDate').textContent = now.toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'}) + ' 💫';
-        if (displayName) document.getElementById('celebrationMessage').textContent = `I found my hidden gem 💎 ${displayName}.`;
-        else document.getElementById('celebrationMessage').textContent = 'I found my hidden gem 💎';
+        document.getElementById('celebrationMessage').textContent = displayName 
+            ? `I found my hidden gem 💎 ${displayName}.` 
+            : 'I found my hidden gem 💎';
         launchConfetti();
         spawnHearts();
         if (navigator.vibrate) navigator.vibrate([30,60,30]);
     }
 
-    // Confetti & hearts
+    // ── Confetti & hearts ──
     const confettiCanvas = document.getElementById('confetti-canvas');
     const confettiCtx = confettiCanvas.getContext('2d');
     let particles = [];
@@ -563,21 +530,47 @@
     function animateConfetti(){ confettiCtx.clearRect(0,0,confettiCanvas.width,confettiCanvas.height); for(let i=particles.length-1;i>=0;i--){ let p=particles[i]; p.life++; p.vy+=0.18; p.vx*=0.985; p.vy*=0.985; p.x+=p.vx; p.y+=p.vy; p.rot+=p.rotSp; p.op=1-p.life/p.maxLife; if(p.life>=p.maxLife||p.op<=0){particles.splice(i,1);continue;} confettiCtx.save(); confettiCtx.globalAlpha=p.op; confettiCtx.translate(p.x,p.y); confettiCtx.rotate(p.rot*Math.PI/180); confettiCtx.fillStyle=p.color; if(p.shape==='rect') confettiCtx.fillRect(-p.size/2,-p.size/4,p.size,p.size/2); else{confettiCtx.beginPath();confettiCtx.arc(0,0,p.size/2,0,Math.PI*2);confettiCtx.fill();} confettiCtx.restore(); } if(particles.length===0){confettiCanvas.classList.remove('active');window._animId=null;} else window._animId=requestAnimationFrame(animateConfetti); }
     function spawnHearts(){ const hs=['💖','💕','✨','💫','🫶','💗']; for(let i=0;i<18;i++){ setTimeout(()=>{ let h=document.createElement('span'); h.className='floating-heart'; h.textContent=hs[Math.floor(Math.random()*hs.length)]; h.style.left=(20+Math.random()*60)+'%'; h.style.top=(40+Math.random()*35)+'%'; h.style.fontSize=(1.2+Math.random()*2.2)+'rem'; document.body.appendChild(h); setTimeout(()=>h.remove(),4500); },i*80); } }
 
-    // Inject permanent found‑cell style + other needed styles
+    // Inject styles for mobile & permanent highlights
     const styleEl = document.createElement('style');
     styleEl.textContent = `
         .cell.found-cell { background: var(--accent-gold); color: #fff; }
         .floating-heart{position:fixed;pointer-events:none;z-index:45;font-size:1.6rem;animation:heartRise 4s ease-out forwards;opacity:0;}
         @keyframes heartRise{0%{opacity:1;transform:translateY(0)scale(0.6)rotate(0deg);}40%{opacity:1;transform:translateY(-180px)scale(1.1)rotate(15deg);}100%{opacity:0;transform:translateY(-400px)scale(0.3)rotate(-25deg);}}
         .btn-no.surrendered{background:var(--button-yes-bg);color:#fff;border:none;box-shadow:0 8px 32px rgba(193,125,106,0.35);}
+        /* Mobile tap instant response */
+        .btn, button, .song, .photo-card, .quiz-option, .coupon-card button, .cell {
+            touch-action: manipulation;
+        }
+        #confetti-canvas {
+            pointer-events: none !important;
+        }
     `;
     document.head.appendChild(styleEl);
 
-    // Start game
-    document.getElementById('startBtn').addEventListener('click', () => showStep(1));
-    showStep(0);
+    // ── Handle persistent celebration (if she already said yes) ──
+    if (celebrationActive) {
+        document.addEventListener('DOMContentLoaded', () => {
+            showStep(7);
+            document.getElementById('initialContent').style.display = 'none';
+            document.getElementById('celebrationContent').classList.remove('hidden');
+            const now = new Date();
+            document.getElementById('celebrationDate').textContent = now.toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'}) + ' 💫';
+            document.getElementById('celebrationMessage').textContent = displayName 
+                ? `I found my hidden gem 💎 ${displayName}.` 
+                : 'I found my hidden gem 💎';
+            launchConfetti();
+            spawnHearts();
+        });
+    } else {
+        // Normal start – make sure the Begin Adventure button works
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('startBtn').addEventListener('click', () => showStep(1));
+            // Ensure step 0 is visible (it already is via the active class)
+            showStep(0);
+        });
+    }
 
-    // Secret reset: click the invisible area 5 times quickly to clear celebration
+    // Reset trigger (tap invisible corner 5 times)
     const resetBtn = document.getElementById('resetTrigger');
     let resetClicks = 0;
     if (resetBtn) {
