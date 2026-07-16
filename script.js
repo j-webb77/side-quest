@@ -605,4 +605,8 @@
     `;
     document.head.appendChild(styleEl);
 
+        // ── Start the game ──
+    document.getElementById('startBtn').addEventListener('click', () => showStep(1));
+    showStep(0);
+
 })();
