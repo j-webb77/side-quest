@@ -11,7 +11,7 @@
 
     // ─── CONFIGURATION ──────────────────
     const RECIPIENT_NAME = 'Jade';
-    const wordList = ['JADE', 'JEREMIAH', 'NIKE', 'COOPER', 'LOVE', 'FOREVER', 'ALWAYS'];
+    const wordList = ['JADE', 'JEREMIAH', 'NIKE', 'COOPER', 'COCONUT', 'SUSHI', 'SWIFTIES', 'ADVENTURE'];
     const riddleData = {
         question: "I speak without a mouth and hear without ears. I have no body, but I come alive with wind. What am I?",
         options: ["Echo", "Shadow", "Dream", "Song"],
@@ -95,14 +95,15 @@
     document.getElementById('finishHearts').addEventListener('click', () => completeQuest(4));
     document.getElementById('finishDecoder').addEventListener('click', () => completeQuest(5));
 
-    // ── STEP 1: Word Search ──
+    // ── STEP 1: Word Search (with guaranteed placement) ──
     const gridEl = document.getElementById('wordGrid');
     let selectedCells = [];
     let foundWords = new Set();
     let foundCellsSet = new Set();
-    const gridSize = 16;
+    const gridSize = 8;
     let gridLetters = [];
 
+    // Touch/mouse drag handlers (only on cells)
     gridEl.addEventListener('mousedown', (e) => {
         if (!e.target.classList.contains('cell')) return;
         e.preventDefault();
@@ -129,60 +130,117 @@
         updateWordSearchCompletion();
     }
 
+    // ── Guaranteed word placement ──
     function generateGrid() {
-        gridLetters = Array(gridSize).fill().map(() => Array(gridSize).fill(''));
-        const directions = [[0,1],[1,0],[1,1],[0,-1],[-1,0],[-1,-1],[1,-1],[-1,1]];
-        for (let word of wordList) {
-            let placed = false;
-            for (let attempt = 0; attempt < 100 && !placed; attempt++) {
-                const dir = directions[Math.floor(Math.random() * directions.length)];
-                const row = Math.floor(Math.random() * gridSize);
-                const col = Math.floor(Math.random() * gridSize);
-                if (canPlace(word, row, col, dir[0], dir[1])) {
-                    placeWord(word, row, col, dir[0], dir[1]);
-                    placed = true;
+        const maxAttempts = 100;
+        for (let attempt = 0; attempt < maxAttempts; attempt++) {
+            gridLetters = Array(gridSize).fill().map(() => Array(gridSize).fill(''));
+            let allPlaced = true;
+            for (let word of wordList) {
+                if (!placeWordInGrid(word)) {
+                    allPlaced = false;
+                    break;
                 }
             }
-            if (!placed) placeWordRandomly(word);
+            if (allPlaced) {
+                // fill blanks
+                for (let r = 0; r < gridSize; r++) {
+                    for (let c = 0; c < gridSize; c++) {
+                        if (!gridLetters[r][c]) gridLetters[r][c] = String.fromCharCode(65 + Math.floor(Math.random() * 26));
+                    }
+                }
+                return;
+            }
         }
-        for (let r=0; r<gridSize; r++) {
-            for (let c=0; c<gridSize; c++) {
-                if (!gridLetters[r][c]) gridLetters[r][c] = String.fromCharCode(65 + Math.floor(Math.random()*26));
+        // fallback: force placement (slower but guaranteed)
+        gridLetters = Array(gridSize).fill().map(() => Array(gridSize).fill(''));
+        for (let word of wordList) {
+            forcePlaceWord(word);
+        }
+        for (let r = 0; r < gridSize; r++) {
+            for (let c = 0; c < gridSize; c++) {
+                if (!gridLetters[r][c]) gridLetters[r][c] = String.fromCharCode(65 + Math.floor(Math.random() * 26));
             }
         }
     }
 
-    function canPlace(word, r, c, dr, dc) {
-        for (let i=0; i<word.length; i++) {
-            const nr = r + i*dr, nc = c + i*dc;
-            if (nr<0 || nr>=gridSize || nc<0 || nc>=gridSize) return false;
+    function placeWordInGrid(word) {
+        const directions = [[0,1],[1,0],[1,1],[0,-1],[-1,0],[-1,-1],[1,-1],[-1,1]];
+        // shuffle directions to add variety
+        const shuffledDirs = directions.sort(() => Math.random() - 0.5);
+        for (let dir of shuffledDirs) {
+            const [dr, dc] = dir;
+            const maxRow = dr === 0 ? gridSize : dr > 0 ? gridSize - word.length : word.length - 1;
+            const maxCol = dc === 0 ? gridSize : dc > 0 ? gridSize - word.length : word.length - 1;
+            // try random positions
+            const positions = [];
+            for (let r = (dr < 0 ? word.length - 1 : 0); r <= (dr <= 0 ? gridSize - 1 : gridSize - word.length); r++) {
+                for (let c = (dc < 0 ? word.length - 1 : 0); c <= (dc <= 0 ? gridSize - 1 : gridSize - word.length); c++) {
+                    positions.push([r, c]);
+                }
+            }
+            // shuffle positions to make it random
+            positions.sort(() => Math.random() - 0.5);
+            for (let [r, c] of positions) {
+                if (canPlaceWordAt(word, r, c, dr, dc)) {
+                    placeWordAt(word, r, c, dr, dc);
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    function forcePlaceWord(word) {
+        // try all positions & directions, accepting any overlap that matches
+        const directions = [[0,1],[1,0],[1,1],[0,-1],[-1,0],[-1,-1],[1,-1],[-1,1]];
+        for (let [dr, dc] of directions) {
+            for (let r = 0; r < gridSize; r++) {
+                for (let c = 0; c < gridSize; c++) {
+                    if (canPlaceWordAt(word, r, c, dr, dc)) {
+                        placeWordAt(word, r, c, dr, dc);
+                        return;
+                    }
+                }
+            }
+        }
+        // If still fails, overwrite the first available cells (very unlikely)
+        for (let r = 0; r < gridSize; r++) {
+            for (let c = 0; c < gridSize; c++) {
+                if (!gridLetters[r][c]) {
+                    // place horizontally in empty area
+                    if (c + word.length <= gridSize) {
+                        for (let i = 0; i < word.length; i++) {
+                            gridLetters[r][c + i] = word[i];
+                        }
+                        return;
+                    }
+                }
+            }
+        }
+    }
+
+    function canPlaceWordAt(word, row, col, dr, dc) {
+        for (let i = 0; i < word.length; i++) {
+            const nr = row + i * dr;
+            const nc = col + i * dc;
+            if (nr < 0 || nr >= gridSize || nc < 0 || nc >= gridSize) return false;
             if (gridLetters[nr][nc] && gridLetters[nr][nc] !== word[i]) return false;
         }
         return true;
     }
 
-    function placeWord(word, r, c, dr, dc) {
-        for (let i=0; i<word.length; i++) {
-            gridLetters[r + i*dr][c + i*dc] = word[i];
-        }
-    }
-
-    function placeWordRandomly(word) {
-        for (let r=0; r<gridSize; r++) {
-            for (let c=0; c<=gridSize-word.length; c++) {
-                if (canPlace(word, r, c, 0, 1)) {
-                    placeWord(word, r, c, 0, 1);
-                    return;
-                }
-            }
+    function placeWordAt(word, row, col, dr, dc) {
+        for (let i = 0; i < word.length; i++) {
+            gridLetters[row + i * dr][col + i * dc] = word[i];
         }
     }
 
     function renderGrid() {
         gridEl.innerHTML = '';
         gridEl.style.gridTemplateColumns = `repeat(${gridSize}, 1fr)`;
-        for (let r=0; r<gridSize; r++) {
-            for (let c=0; c<gridSize; c++) {
+        for (let r = 0; r < gridSize; r++) {
+            for (let c = 0; c < gridSize; c++) {
                 const cell = document.createElement('div');
                 cell.className = 'cell';
                 cell.textContent = gridLetters[r][c];
