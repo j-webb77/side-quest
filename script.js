@@ -430,13 +430,15 @@
     }
 
     function gameLoop() {
+        const baseSpeed = 1.5 + (30 - heartsTimer) * 0.15;
         if (!gameActive) return;
         ctx.clearRect(0,0,canvas.width,canvas.height);
         if (Math.random() < 0.05) {
             heartParticles.push({
                 x: Math.random() * canvas.width,
                 y: -20,
-                speed: 1.5 + Math.random() * 2,
+                // Speed increases as time goes on (heartsTimer goes from 30 → 0
+                speed: baseSpeed + Math.random() * 2,
                 size: 20 + Math.random() * 15
             });
         }
