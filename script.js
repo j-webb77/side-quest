@@ -100,7 +100,7 @@
     let selectedCells = [];
     let foundWords = new Set();
     let foundCellsSet = new Set();
-    const gridSize = 8;
+    const gridSize = 16;
     let gridLetters = [];
 
     gridEl.addEventListener('mousedown', (e) => {
