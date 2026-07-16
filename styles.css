@@ -149,4 +149,13 @@ html, body {
 #confetti-canvas { position:fixed; inset:0; z-index:50; pointer-events:none; opacity:0; }
 #confetti-canvas.active { opacity:1; }
 
-@media (max-width:480px) { .word-grid { grid-template-columns:repeat(7, 1fr); } }
+/* Smaller letters on mobile so 12 columns fit */
+@media (max-width: 480px) {
+    .word-grid {
+        grid-template-columns: repeat(12, 1fr);
+    }
+    .cell {
+        font-size: 0.65rem;       /* shrink the letters */
+        padding: 2px;
+    }
+}

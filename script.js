@@ -100,7 +100,7 @@
     let selectedCells = [];
     let foundWords = new Set();
     let foundCellsSet = new Set();
-    const gridSize = 8;
+    const gridSize = 12;
     let gridLetters = [];
 
     // Touch/mouse drag handlers (only on cells)
