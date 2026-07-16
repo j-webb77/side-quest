@@ -28,7 +28,6 @@
     ];
 
     const displayName = urlParams.get('name') || urlParams.get('n') || RECIPIENT_NAME;
-    let celebrationActive = localStorage.getItem(STORAGE_KEY) === 'true';
 
     // ── Global state ──
     let currentStep = 0;
@@ -563,7 +562,6 @@
     btnYes.addEventListener('click', triggerCelebration);
 
     function triggerCelebration() {
-        localStorage.setItem(STORAGE_KEY, 'true');
         document.getElementById('initialContent').style.display = 'none';
         document.getElementById('celebrationContent').classList.remove('hidden');
         const now = new Date();
@@ -605,41 +603,4 @@
     `;
     document.head.appendChild(styleEl);
 
-    // ── Handle persistent celebration (if she already said yes) ──
-    if (celebrationActive) {
-        document.addEventListener('DOMContentLoaded', () => {
-            showStep(7);
-            document.getElementById('initialContent').style.display = 'none';
-            document.getElementById('celebrationContent').classList.remove('hidden');
-            const now = new Date();
-            document.getElementById('celebrationDate').textContent = now.toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'}) + ' 💫';
-            document.getElementById('celebrationMessage').textContent = displayName 
-                ? `I found my hidden gem 💎 ${displayName}.` 
-                : 'I found my hidden gem 💎';
-            launchConfetti();
-            spawnHearts();
-        });
-    } else {
-        // Normal start – make sure the Begin Adventure button works
-        document.addEventListener('DOMContentLoaded', () => {
-            document.getElementById('startBtn').addEventListener('click', () => showStep(1));
-            // Ensure step 0 is visible (it already is via the active class)
-            showStep(0);
-        });
-    }
-
-    // Reset trigger (tap invisible corner 5 times)
-    const resetBtn = document.getElementById('resetTrigger');
-    let resetClicks = 0;
-    if (resetBtn) {
-        resetBtn.addEventListener('click', () => {
-            resetClicks++;
-            if (resetClicks >= 5) {
-                localStorage.removeItem(STORAGE_KEY);
-                alert('Celebration reset! Reload the page.');
-                resetClicks = 0;
-            }
-            setTimeout(() => { resetClicks = 0; }, 2000);
-        });
-    }
 })();
